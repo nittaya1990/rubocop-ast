@@ -9,29 +9,28 @@ source 'https://rubygems.org'
 gemspec
 
 gem 'bump', require: false
-gem 'oedipus_lex', require: false
+gem 'bundler', '>= 1.15.0', '< 3.0'
+gem 'oedipus_lex', '>= 2.6.0', require: false
+gem 'prism', '>= 1.1.0'
 gem 'racc'
 gem 'rake', '~> 13.0'
 gem 'rspec', '~> 3.7'
-# Workaround for cc-test-reporter with SimpleCov 0.18.
-# Stop upgrading SimpleCov until the following issue will be resolved.
-# https://github.com/codeclimate/test-reporter/issues/418
-gem 'simplecov', '~> 0.10', '< 0.18'
+gem 'simplecov', '~> 0.20'
 
-if ENV['RUBOCOP_VERSION'] == 'none'
+if ENV.fetch('RUBOCOP_VERSION', nil) == 'none'
   # Set this way on CI
   puts 'Running specs independently of RuboCop'
 else
   local_ast = File.expand_path('../rubocop', __dir__)
   if File.exist?(local_ast)
     gem 'rubocop', path: local_ast
-  elsif ENV['RUBOCOP_VERSION'] == 'master'
+  elsif ENV.fetch('RUBOCOP_VERSION', nil) == 'master'
     gem 'rubocop', git: 'https://github.com/rubocop/rubocop.git'
   else
     gem 'rubocop', '>= 1.0'
   end
   gem 'rubocop-performance'
-  gem 'rubocop-rspec'
+  gem 'rubocop-rspec', '~> 3.0.0'
 end
 
 local_gemfile = File.expand_path('Gemfile.local', __dir__)

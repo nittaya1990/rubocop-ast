@@ -2,6 +2,206 @@
 
 ## master (unreleased)
 
+## 1.33.1 (2024-11-02)
+
+### Bug fixes
+
+* [#325](https://github.com/rubocop-hq/rubocop-ast/pull/325): Allow `non_bare_access_modifier_declaration?` to handle modifiers with multiple arguments. ([@dvandersluis][])
+
+## 1.33.0 (2024-10-29)
+
+### New features
+
+* [#203](https://github.com/rubocop-hq/rubocop-ast/pull/203): Add classes for `masgn` and `mlhs` nodes. ([@dvandersluis][])
+* [#204](https://github.com/rubocop-hq/rubocop-ast/pull/204): Add `VarNode` class for `lvar`, `ivar`, `cvar` and `gvar` node types. ([@dvandersluis][])
+
+## 1.32.3 (2024-09-05)
+
+### Bug fixes
+
+* [#310](https://github.com/rubocop/rubocop-ast/pull/310): Fix `RuboCop::AST::DefNode#void_context?` to handle class methods called `initialize`. ([@vlad-pisanov][])
+
+## 1.32.2 (2024-09-02)
+
+## 1.32.1 (2024-08-17)
+
+### Changes
+
+* [#309](https://github.com/rubocop/rubocop-ast/pull/309): Mark `RuboCop::AST::EnsureNode` as being in a void context. ([@earlopain][])
+
+## 1.32.0 (2024-08-05)
+
+### New features
+
+* [#304](https://github.com/rubocop/rubocop-ast/pull/304): Add `RuboCop::AST::RationalNode`. ([@koic][])
+
+## 1.31.3 (2024-04-29)
+
+### Bug fixes
+
+* [#289](https://github.com/rubocop/rubocop-ast/pull/289): Fix an error during parsing when encountering unknown encodings in the encoding magic comment. ([@Earlopain][])
+
+## 1.31.2 (2024-03-08)
+
+### Bug fixes
+
+* [#286](https://github.com/rubocop/rubocop-ast/pull/286): Improve error message for invalid `parser_engine` value. ([@Earlopain][])
+
+## 1.31.1 (2024-03-01)
+
+### Changes
+
+* [#282](https://github.com/rubocop/rubocop-ast/issues/282): Remove Prism from runtime dependency. ([@koic][])
+
+## 1.31.0 (2024-02-29)
+
+### New features
+
+* [#277](https://github.com/rubocop/rubocop-ast/pull/277): Support Prism as a Ruby parser (experimental). ([@koic][])
+* [#276](https://github.com/rubocop/rubocop-ast/pull/276): Support `Parser::Ruby34` for Ruby 3.4 parser (experimental). ([@koic][])
+
+### Changes
+
+* [#279](https://github.com/rubocop/rubocop-ast/pull/279): **(Compatibility)** Drop Ruby 2.6 runtime support. ([@koic][])
+* [#272](https://github.com/rubocop/rubocop-ast/pull/272): Make `Node#left_curly_brace?` aware of lambda brace. ([@koic][])
+
+## 1.30.0 (2023-10-26)
+
+### New features
+
+- [#270](https://github.com/rubocop/rubocop-ast/pull/270): Add `BlockNode#{first,last}_argument` helpers. ([@sambostock][])
+
+## 1.29.0 (2023-06-01)
+
+* [#262](https://github.com/rubocop/rubocop-ast/pull/267): Introduce RuboCop::Ast::MethodDispatchNode#selector. ([@gsamokovarov][])
+
+## 1.28.1 (2023-05-01)
+
+### Bug fixes
+
+* [#262](https://github.com/rubocop/rubocop-ast/pull/262): Fix an error when parsing non UTF-8 frozen string. ([@koic][])
+
+## 1.28.0 (2023-03-24)
+
+### New features
+
+* [#259](https://github.com/rubocop/rubocop-ast/pull/259): Add `forwarded_kwrestarg` node to `AST::Builder`. ([@koic][])
+
+## 1.27.0 (2023-02-27)
+
+### New features
+
+* [#229](https://github.com/rubocop/rubocop-ast/pull/229): Add `source_range` method to `NodePattern`. ([@koic][])
+
+## 1.26.0 (2023-02-11)
+
+### New features
+
+* [#255](https://github.com/rubocop/rubocop-ast/pull/255): Make `Node#class_constructor?` aware of Ruby 3.2's `Data.define`. ([@koic][])
+* [#255](https://github.com/rubocop/rubocop-ast/pull/255): Make `Node#class_construcor?` aware of Ruby 2.7's numbered parameters. ([@koic][])
+
+## 1.25.0 (2023-02-11)
+
+### New features
+
+* [#256](https://github.com/rubocop/rubocop-ast/pull/256): Support `Parser::Ruby33` for Ruby 3.3 parser (experimental). ([@koic][])
+
+## 1.24.1 (2022-12-29)
+
+## 1.24.0 (2022-11-30)
+
+### New features
+
+* [#245](https://github.com/rubocop/rubocop-ast/pull/245): Add node types `forwarded_restarg` and `forwarded_kwrestarg`. ([@ydah][])
+
+## 1.23.0 (2022-10-21)
+
+### New features
+
+* [#242](https://github.com/rubocop/rubocop-ast/pull/242): Add `character_literal?` to `StrNode`. ([@koic][])
+
+## 1.22.0 (2022-10-17)
+
+### New features
+
+* [#240](https://github.com/rubocop/rubocop-ast/pull/240): Add a type predicate `new_line?` to Token. ([@tdeo][])
+
+## 1.21.0 (2022-08-08)
+
+### New features
+
+* [#231](https://github.com/rubocop/rubocop-ast/pull/231): Add a type predicate `dot?` to Token. ([@nobuyo][])
+
+## 1.20.1 (2022-08-07)
+
+### New features
+
+* [#237](https://github.com/rubocop/rubocop-ast/pull/237) Fix `#macro?` for numblock nodes ([@gsamokovarov][])
+
+## 1.20.0 (2022-08-07)
+
+### Bug fixes
+
+* [#230](https://github.com/rubocop/rubocop-ast/pull/230): Make `RegexpNode` aware of fixed-encoding regopt. ([@koic][])
+
+## 1.19.1 (2022-07-10)
+
+### New features
+
+* [#235](https://github.com/rubocop/rubocop-ast/pull/235): Add `regexp_dots?` method to `RuboCop::AST::Token` (erroneously released in 1.19.0 as `regexp_dot?`). ([@koic][])
+
+## 1.18.0 (2022-05-13)
+
+### New features
+
+* [#233](https://github.com/rubocop/rubocop-ast/pull/233): Make parse from Ruby 1.9 to 2.3 available. ([@koic][])
+
+### Changes
+
+* [#232](https://github.com/rubocop/rubocop-ast/pull/232): **(Compatibility)** Drop support for Ruby 2.5. ([@koic][])
+
+## 1.17.0 (2022-04-09)
+
+### New features
+
+* [#227](https://github.com/rubocop/rubocop-ast/pull/227):  Make `Node#condition?` aware of `case-match` node. ([@koic][])
+
+## 1.16.0 (2022-02-21)
+
+### New features
+
+* [#223](https://github.com/rubocop/rubocop-ast/pull/223): Support `Parser::Ruby32` for Ruby 3.2 parser (experimental). ([@koic][])
+
+## 1.15.2 (2022-02-12)
+
+### Bug fixes
+
+* Fix `:&` parsing ([@zverok][])
+
+## 1.15.1 (2021-12-27)
+
+### Bug fixes
+
+* [#10220](https://github.com/rubocop/rubocop/pull/10220): Make `AST::Node#receiver` aware of `csend` block method calls. ([@koic][])
+
+## 1.15.0 (2021-12-12)
+
+### New features
+
+* [#10219](https://github.com/rubocop/rubocop/pull/10219): Add `value_omission` method to `AST::PairNode` for Ruby 3.1's hash value omission. ([@koic][])
+
+## 1.14.0 (2021-12-02)
+
+### New features
+
+* [#218](https://github.com/rubocop/rubocop-ast/pull/218): Support Ruby 3.1's anonymous block forwarding syntax. ([@koic][])
+
+## 1.13.0 (2021-11-07)
+
+### New features
+
+* [#213](https://github.com/rubocop/rubocop-ast/pull/213): Make `Node#numeric_type?` aware of rational and complex literals. ([@koic][])
+
 ## 1.12.0 (2021-09-27)
 
 ### Bug fixes
@@ -284,3 +484,12 @@
 [@dvandersluis]: https://github.com/dvandersluis
 [@eugeneius]: https://github.com/eugeneius
 [@wcmonty]: https://github.com/wcmonty
+[@zverok]: https://github.com/zverok
+[@gsamokovarov]: https://github.com/gsamokovarov
+[@nobuyo]: https://github.com/nobuyo
+[@tdeo]: https://github.com/tdeo
+[@ydah]: https://github.com/ydah
+[@sambostock]: https://github.com/sambostock
+
+[@Earlopain]: https://github.com/Earlopain
+[@earlopain]: https://github.com/earlopain

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-RSpec.describe RuboCop::AST::IfNode do
+# FIXME: `broken_on: :prism` can be removed when Prism > 0.24.0 will be released.
+RSpec.describe RuboCop::AST::IfNode, broken_on: :prism do
   subject(:if_node) { parse_source(source).ast }
 
   describe '.new' do
@@ -138,7 +139,7 @@ RSpec.describe RuboCop::AST::IfNode do
       it { expect(elsif_node).to be_elsif }
     end
 
-    context 'with an if statement comtaining an elsif' do
+    context 'with an if statement containing an elsif' do
       let(:source) do
         ['if foo?',
          '  1',

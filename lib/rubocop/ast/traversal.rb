@@ -34,18 +34,18 @@ module RuboCop
 
         def def_callback(type, *signature,
                          arity: signature.size..signature.size,
-                         arity_check: ENV['RUBOCOP_DEBUG'] && self.arity_check(arity),
+                         arity_check: ENV.fetch('RUBOCOP_DEBUG', nil) && self.arity_check(arity),
                          body: self.body(signature, arity_check))
           type, *aliases = type
           lineno = caller_locations(1, 1).first.lineno
-          module_eval(<<~RUBY, __FILE__, lineno) # rubocop:disable Style/EvalWithLocation
+          module_eval(<<~RUBY, __FILE__, lineno)
             def on_#{type}(node)        # def on_send(node)
               #{body}                   #   # body ...
               nil                       #   nil
             end                         # end
           RUBY
           aliases.each do |m|
-            alias_method "on_#{m}", "on_#{type}"
+            alias_method :"on_#{m}", :"on_#{type}"
           end
         end
 
@@ -75,7 +75,8 @@ module RuboCop
       ### arity == 0
       no_children = %i[true false nil self cbase zsuper redo retry
                        forward_args forwarded_args match_nil_pattern
-                       forward_arg lambda empty_else kwnilarg
+                       forward_arg forwarded_restarg forwarded_kwrestarg
+                       lambda empty_else kwnilarg
                        __FILE__ __LINE__ __ENCODING__]
 
       ### arity == 0..1
@@ -91,11 +92,10 @@ module RuboCop
 
       many_symbol_children = %i[regopt]
 
-      node_child = %i[block_pass not
-                      match_current_line defined?
+      node_child = %i[not match_current_line defined?
                       arg_expr pin if_guard unless_guard
                       match_with_trailing_comma]
-      node_or_nil_child = %i[preexe postexe]
+      node_or_nil_child = %i[block_pass preexe postexe]
 
       NO_CHILD_NODES = (no_children + opt_symbol_child + literal_child).to_set.freeze
       private_constant :NO_CHILD_NODES # Used by Commissioner
@@ -163,7 +163,7 @@ module RuboCop
       ### generic processing of any other node (forward compatibility)
       defined = instance_methods(false)
                 .grep(/^on_/)
-                .map { |s| s.to_s[3..-1].to_sym } # :on_foo => :foo
+                .map { |s| s.to_s[3..].to_sym } # :on_foo => :foo
 
       to_define = ::Parser::Meta::NODE_TYPES.to_a
       to_define -= defined

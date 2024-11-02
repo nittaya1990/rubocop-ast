@@ -7,7 +7,9 @@ RSpec.describe RuboCop::AST::Token do
     # comment
     def some_method
       [ 1, 2 ];
-      foo[0] = 3
+      foo[0] = 3.to_i
+      1..42
+      1...42
     end
   RUBY
 
@@ -22,6 +24,9 @@ RSpec.describe RuboCop::AST::Token do
     processed_source.find_token { |t| t.text == '[' && t.line == 3 }
   end
   let(:comma_token) { processed_source.find_token { |t| t.text == ',' } }
+  let(:irange_token) { processed_source.find_token { |t| t.text == '..' } }
+  let(:erange_token) { processed_source.find_token { |t| t.text == '...' } }
+  let(:dot_token) { processed_source.find_token { |t| t.text == '.' } }
   let(:right_array_bracket_token) do
     processed_source.find_token { |t| t.text == ']' && t.line == 3 }
   end
@@ -37,6 +42,7 @@ RSpec.describe RuboCop::AST::Token do
   let(:equals_token) { processed_source.find_token { |t| t.text == '=' } }
 
   let(:end_token) { processed_source.find_token { |t| t.text == 'end' } }
+  let(:new_line_token) { processed_source.find_token { |t| t.line == 7 && t.column == 3 } }
 
   describe '.from_parser_token' do
     subject(:token) { described_class.from_parser_token(parser_token) }
@@ -69,7 +75,7 @@ RSpec.describe RuboCop::AST::Token do
     it 'returns line of token' do
       expect(first_token.line).to eq 1
       expect(zero_token.line).to eq 4
-      expect(end_token.line).to eq 5
+      expect(end_token.line).to eq 7
     end
   end
 
@@ -85,7 +91,7 @@ RSpec.describe RuboCop::AST::Token do
     it 'returns index of first char in token range of entire source' do
       expect(first_token.begin_pos).to eq 0
       expect(zero_token.begin_pos).to eq 44
-      expect(end_token.begin_pos).to eq 51
+      expect(end_token.begin_pos).to eq 73
     end
   end
 
@@ -93,7 +99,7 @@ RSpec.describe RuboCop::AST::Token do
     it 'returns index of last char in token range of entire source' do
       expect(first_token.end_pos).to eq 9
       expect(zero_token.end_pos).to eq 45
-      expect(end_token.end_pos).to eq 54
+      expect(end_token.end_pos).to eq 76
     end
   end
 
@@ -107,8 +113,8 @@ RSpec.describe RuboCop::AST::Token do
     end
 
     it 'returns nil when there is not a space after token' do
-      expect(left_ref_bracket_token.space_after?).to be nil
-      expect(zero_token.space_after?).to be nil
+      expect(left_ref_bracket_token.space_after?).to be_nil
+      expect(zero_token.space_after?).to be_nil
     end
   end
 
@@ -131,12 +137,12 @@ RSpec.describe RuboCop::AST::Token do
     end
 
     it 'returns nil when there is not a space before token' do
-      expect(semicolon_token.space_before?).to be nil
-      expect(zero_token.space_before?).to be nil
+      expect(semicolon_token.space_before?).to be_nil
+      expect(zero_token.space_before?).to be_nil
     end
 
     it 'returns nil when it is on the first line' do
-      expect(processed_source.tokens[0].space_before?).to be nil
+      expect(processed_source.tokens[0].space_before?).to be_nil
     end
   end
 
@@ -232,6 +238,29 @@ RSpec.describe RuboCop::AST::Token do
       end
     end
 
+    describe '#dot?' do
+      it 'returns true for dot tokens' do
+        expect(dot_token).to be_dot
+      end
+
+      it 'returns false for non dot tokens' do
+        expect(semicolon_token).not_to be_dot
+        expect(right_ref_bracket_token).not_to be_dot
+      end
+    end
+
+    describe '#regexp_dots?' do
+      it 'returns true for regexp tokens' do
+        expect(irange_token).to be_regexp_dots
+        expect(erange_token).to be_regexp_dots
+      end
+
+      it 'returns false for non comma tokens' do
+        expect(semicolon_token).not_to be_regexp_dots
+        expect(right_ref_bracket_token).not_to be_regexp_dots
+      end
+    end
+
     describe '#rescue_modifier?' do
       let(:source) { <<~RUBY }
         def foo
@@ -275,10 +304,22 @@ RSpec.describe RuboCop::AST::Token do
       end
     end
 
+    describe '#new_line?' do
+      it 'returns true for new line tokens' do
+        expect(new_line_token).to be_a_new_line
+      end
+
+      it 'returns false for non new line tokens' do
+        expect(end_token).not_to be_a_new_line
+        expect(semicolon_token).not_to be_a_new_line
+      end
+    end
+
     context 'with braces & parens' do
       let(:source) { <<~RUBY }
         { a: 1 }
         foo { |f| bar(f) }
+        -> { f }
       RUBY
 
       let(:left_hash_brace_token) do
@@ -291,6 +332,9 @@ RSpec.describe RuboCop::AST::Token do
       let(:left_block_brace_token) do
         processed_source.find_token { |t| t.text == '{' && t.line == 2 }
       end
+      let(:left_lambda_brace_token) do
+        processed_source.find_token { |t| t.text == '{' && t.line == 3 }
+      end
       let(:left_parens_token) do
         processed_source.find_token { |t| t.text == '(' }
       end
@@ -302,7 +346,9 @@ RSpec.describe RuboCop::AST::Token do
       end
 
       describe '#left_brace?' do
-        it 'returns true for left hash brace tokens' do
+        # FIXME: `broken_on: :prism` can be removed when
+        # https://github.com/ruby/prism/issues/2454 will be released.
+        it 'returns true for left hash brace tokens', broken_on: :prism do
           expect(left_hash_brace_token).to be_left_brace
         end
 
@@ -315,9 +361,12 @@ RSpec.describe RuboCop::AST::Token do
       describe '#left_curly_brace?' do
         it 'returns true for left block brace tokens' do
           expect(left_block_brace_token).to be_left_curly_brace
+          expect(left_lambda_brace_token).to be_left_curly_brace
         end
 
-        it 'returns false for non left block brace tokens' do
+        # FIXME: `broken_on: :prism` can be removed when
+        # https://github.com/ruby/prism/issues/2454 will be released.
+        it 'returns false for non left block brace tokens', broken_on: :prism do
           expect(left_hash_brace_token).not_to be_left_curly_brace
           expect(right_block_brace_token).not_to be_left_curly_brace
         end

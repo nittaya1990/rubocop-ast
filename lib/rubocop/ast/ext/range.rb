@@ -15,8 +15,8 @@ module RuboCop
         #     :bar
         #   ]
         #
-        #   node.loc.begin.line_span                         # => 1..1
-        #   node.loc.expression.line_span(exclude_end: true) # => 1...4
+        #   node.loc.begin.line_span                       # => 1..1
+        #   node.source_range.line_span(exclude_end: true) # => 1...4
         def line_span(exclude_end: false)
           ::Range.new(first_line, last_line, exclude_end)
         end
@@ -25,4 +25,4 @@ module RuboCop
   end
 end
 
-::Parser::Source::Range.include ::RuboCop::AST::Ext::Range
+Parser::Source::Range.include RuboCop::AST::Ext::Range

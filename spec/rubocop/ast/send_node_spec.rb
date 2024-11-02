@@ -118,6 +118,18 @@ RSpec.describe RuboCop::AST::SendNode do
       it { expect(send_node).to be_access_modifier }
     end
 
+    context 'when node is a non-bare `module_function` with multiple arguments' do
+      let(:source) do
+        <<~RUBY
+          module Foo
+          >> module_function :foo, :bar <<
+          end
+        RUBY
+      end
+
+      it { expect(send_node).to be_access_modifier }
+    end
+
     context 'when node is not an access modifier' do
       let(:source) do
         <<~RUBY
@@ -167,6 +179,33 @@ RSpec.describe RuboCop::AST::SendNode do
 
       it { expect(send_node).not_to be_bare_access_modifier }
     end
+
+    context 'with Ruby >= 2.7', :ruby27 do
+      context 'when node is access modifier in block' do
+        let(:source) do
+          <<~RUBY
+            included do
+            >> module_function <<
+            end
+          RUBY
+        end
+
+        it { expect(send_node).to be_bare_access_modifier }
+      end
+
+      context 'when node is access modifier in numblock' do
+        let(:source) do
+          <<~RUBY
+            included do
+            _1
+            >> module_function <<
+            end
+          RUBY
+        end
+
+        it { expect(send_node).to be_bare_access_modifier }
+      end
+    end
   end
 
   describe '#non_bare_access_modifier?' do
@@ -175,6 +214,18 @@ RSpec.describe RuboCop::AST::SendNode do
         <<~RUBY
           module Foo
           >> module_function :foo <<
+          end
+        RUBY
+      end
+
+      it { expect(send_node).to be_non_bare_access_modifier }
+    end
+
+    context 'when node is a non-bare `module_function` with multiple arguments' do
+      let(:source) do
+        <<~RUBY
+          module Foo
+          >> module_function :foo, :bar <<
           end
         RUBY
       end
@@ -273,6 +324,19 @@ RSpec.describe RuboCop::AST::SendNode do
         end
 
         it { expect(send_node).to be_macro }
+      end
+
+      context 'with Ruby >= 2.7', :ruby27 do
+        context 'when parent is a numblock in a macro scope' do
+          let(:source) do
+            ['concern :Auth do',
+             '>>bar :baz<<',
+             '  bar _1',
+             'end'].join("\n")
+          end
+
+          it { expect(send_node).to be_macro }
+        end
       end
 
       context 'when parent is a block not in a macro scope' do
@@ -818,7 +882,7 @@ RSpec.describe RuboCop::AST::SendNode do
         let(:source) { 'attr_reader' }
 
         it do
-          expect(send_node.attribute_accessor?).to be(nil)
+          expect(send_node.attribute_accessor?).to be_nil
         end
       end
     end

@@ -28,7 +28,7 @@ class Changelog # rubocop:disable Metrics/ClassLength
     end
 
     def write
-      Dir.mkdir(ENTRIES_PATH) unless Dir.exist?(ENTRIES_PATH)
+      FileUtils.mkdir_p(ENTRIES_PATH)
       File.write(path, content)
       path
     end
@@ -77,6 +77,21 @@ class Changelog # rubocop:disable Metrics/ClassLength
       user
     end
   end
+
+  def self.pending?
+    entry_paths.any?
+  end
+
+  def self.entry_paths
+    Dir["#{ENTRIES_PATH}*"]
+  end
+
+  def self.read_entries
+    entry_paths.to_h do |path|
+      [path, File.read(path)]
+    end
+  end
+
   attr_reader :header, :rest
 
   def initialize(content: File.read(PATH), entries: Changelog.read_entries)
@@ -118,24 +133,10 @@ class Changelog # rubocop:disable Metrics/ClassLength
     ].join("\n")
   end
 
-  def self.pending?
-    entry_paths.any?
-  end
-
-  def self.entry_paths
-    Dir["#{ENTRIES_PATH}*"]
-  end
-
-  def self.read_entries
-    entry_paths.to_h do |path|
-      [path, File.read(path)]
-    end
-  end
-
   def new_contributor_lines
-    contributors
-      .map { |user| format(CONTRIBUTOR, user: user) }
-      .reject { |line| @rest.include?(line) }
+    unique_contributor_names = contributors.map { |user| format(CONTRIBUTOR, user: user) }.uniq
+
+    unique_contributor_names.reject { |line| @rest.include?(line) }
   end
 
   def contributors

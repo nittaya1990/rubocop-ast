@@ -81,7 +81,7 @@ module RuboCop
         (if? || unless?) && super
       end
 
-      # Chacks whether the `if` node has nested `if` nodes in any of its
+      # Checks whether the `if` node has nested `if` nodes in any of its
       # branches.
       #
       # @note This performs a shallow search.
@@ -102,7 +102,7 @@ module RuboCop
       #
       # @return [Boolean] whether the `if` node has at least one `elsif` branch
       def elsif_conditional?
-        else_branch&.if_type? && else_branch&.elsif?
+        else_branch&.if_type? && else_branch.elsif?
       end
 
       # Returns the branch of the `if` node that gets evaluated when its

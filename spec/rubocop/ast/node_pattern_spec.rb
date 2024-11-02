@@ -49,14 +49,14 @@ RSpec.describe RuboCop::AST::NodePattern do
 
   shared_examples 'nonmatching' do
     it "doesn't match" do
-      expect(result).to be nil
+      expect(result).to be_nil
     end
   end
 
   shared_examples 'invalid' do
     it 'is invalid' do
       expect { instance }
-        .to raise_error(RuboCop::AST::NodePattern::Invalid)
+        .to raise_error(described_class::Invalid)
     end
   end
 
@@ -160,10 +160,10 @@ RSpec.describe RuboCop::AST::NodePattern do
       let(:pattern) { "  (send  42 \n :to_s ) " }
 
       it 'returns true iff the patterns are similar' do
-        expect(instance == instance.dup).to eq true
-        expect(instance == 42).to eq false
-        expect(instance == described_class.new('(send)')).to eq false
-        expect(instance == described_class.new('(send 42 :to_s)')).to eq true
+        expect(instance == instance.dup).to be true
+        expect(instance == 42).to be false
+        expect(instance == described_class.new('(send)')).to be false
+        expect(instance == described_class.new('(send 42 :to_s)')).to be true
       end
     end
   end
@@ -2063,6 +2063,7 @@ RSpec.describe RuboCop::AST::NodePattern do
     let(:ruby) { ':hello' }
     let(:instance) { defined_class.new }
 
+    # rubocop:disable RSpec/ExpectInLet
     let(:raise_argument_error) do
       raise_error do |err|
         expect(err).to be_a(ArgumentError)
@@ -2070,6 +2071,7 @@ RSpec.describe RuboCop::AST::NodePattern do
         expect(err.backtrace_locations.first.lineno).to be(line_no) if RUBY_ENGINE == 'ruby'
       end
     end
+    # rubocop:enable RSpec/ExpectInLet
 
     context 'with a pattern without captures' do
       let(:pattern) { '(sym _)' }
@@ -2112,7 +2114,7 @@ RSpec.describe RuboCop::AST::NodePattern do
           context 'when called on matching code' do
             it 'returns an enumerator yielding the matches' do
               is_expected.to be_a(Enumerator)
-              expect(result.to_a).to match_array [s(:sym, :hello), s(:sym, :world)]
+              expect(result.to_a).to contain_exactly(s(:sym, :hello), s(:sym, :world))
             end
           end
 

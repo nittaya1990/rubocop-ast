@@ -4,6 +4,8 @@ module RuboCop
   module AST
     # A basic wrapper around Parser's tokens.
     class Token
+      LEFT_PAREN_TYPES = %i[tLPAREN tLPAREN2].freeze
+
       attr_reader :pos, :type, :text
 
       def self.from_parser_token(parser_token)
@@ -81,7 +83,7 @@ module RuboCop
       end
 
       def left_curly_brace?
-        type == :tLCURLY
+        type == :tLCURLY || type == :tLAMBEG
       end
 
       def right_curly_brace?
@@ -89,7 +91,7 @@ module RuboCop
       end
 
       def left_parens?
-        %i[tLPAREN tLPAREN2].include?(type)
+        LEFT_PAREN_TYPES.include?(type)
       end
 
       def right_parens?
@@ -98,6 +100,14 @@ module RuboCop
 
       def comma?
         type == :tCOMMA
+      end
+
+      def dot?
+        type == :tDOT
+      end
+
+      def regexp_dots?
+        %i[tDOT2 tDOT3].include?(type)
       end
 
       def rescue_modifier?
@@ -110,6 +120,10 @@ module RuboCop
 
       def equal_sign?
         %i[tEQL tOP_ASGN].include?(type)
+      end
+
+      def new_line?
+        type == :tNL
       end
     end
   end

@@ -21,6 +21,24 @@ module RuboCop
         node_parts[0]
       end
 
+      # A shorthand for getting the first argument of this block.
+      # Equivalent to `arguments.first`.
+      #
+      # @return [Node, nil] the first argument of this block,
+      #                     or `nil` if there are no arguments
+      def first_argument
+        arguments[0]
+      end
+
+      # A shorthand for getting the last argument of this block.
+      # Equivalent to `arguments.last`.
+      #
+      # @return [Node, nil] the last argument of this block,
+      #                     or `nil` if there are no arguments
+      def last_argument
+        arguments[-1]
+      end
+
       # The arguments of this block.
       # Note that if the block has destructured arguments, `arguments` will
       # return a `mlhs` node, whereas `argument_list` will return only
@@ -72,14 +90,14 @@ module RuboCop
       #
       # @return [Boolean] whether the `block` literal is enclosed in braces
       def braces?
-        loc.end&.is?('}')
+        loc.end.is?('}')
       end
 
       # Checks whether the `block` literal is delimited by `do`-`end` keywords.
       #
       # @return [Boolean] whether the `block` literal is enclosed in `do`-`end`
       def keywords?
-        loc.end&.is?('end')
+        loc.end.is?('end')
       end
 
       # The delimiters for this `block` literal.

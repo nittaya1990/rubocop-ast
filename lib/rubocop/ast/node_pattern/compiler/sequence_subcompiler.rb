@@ -13,8 +13,8 @@ module RuboCop
         # Doc on how this fits in the compiling process:
         #   /docs/modules/ROOT/pages/node_pattern.adoc
         #
-        # rubocop:disable Metrics/ClassLength
-        class SequenceSubcompiler < Subcompiler
+        class SequenceSubcompiler < Subcompiler # rubocop:disable Metrics/ClassLength
+          # Shift of 1 from standard Ruby indices
           DELTA = 1
           POSITIVE = :positive?.to_proc
           private_constant :POSITIVE
@@ -371,13 +371,13 @@ module RuboCop
 
           # @return [Hash] of {subcompiler => code}
           def compile_union_forks
-            compiler.each_union(node.children).map do |child|
+            compiler.each_union(node.children).to_h do |child|
               subsequence_terms = child.is_a?(Node::Subsequence) ? child.children : [child]
               fork = dup
               code = fork.compile_terms(subsequence_terms, @remaining_arity)
               @in_sync = false if @cur_index != :variadic_mode
               [fork, code]
-            end.to_h # we could avoid map if RUBY_VERSION >= 2.6...
+            end
           end
 
           # Modifies in place `forks` to insure that `cur_{child|index}_var` are ok
@@ -413,7 +413,6 @@ module RuboCop
             @in_sync = sub_compilers.all?(&:in_sync)
           end
         end
-        # rubocop:enable Metrics/ClassLength
       end
     end
   end

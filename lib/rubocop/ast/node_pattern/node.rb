@@ -5,9 +5,8 @@ module RuboCop
     class NodePattern
       # Base class for AST Nodes of a `NodePattern`
       class Node < ::Parser::AST::Node
-        extend Forwardable
+        extend SimpleForwardable
         include ::RuboCop::AST::Descendence
-        using Ext::RangeMinMax
 
         MATCHES_WITHIN_SET = %i[symbol number string].to_set.freeze
         private_constant :MATCHES_WITHIN_SET
@@ -75,6 +74,10 @@ module RuboCop
           self.class.new(type, children, { location: location })
         end
 
+        def source_range
+          loc.expression
+        end
+
         INT_TO_RANGE = Hash.new { |h, k| h[k] = k..k }
         private_constant :INT_TO_RANGE
 
@@ -116,7 +119,7 @@ module RuboCop
 
           def initialize(type, children = [], properties = {})
             if (replace = children.first.in_sequence_head)
-              children = [*replace, *children[1..-1]]
+              children = [*replace, *children[1..]]
             end
 
             super
@@ -130,7 +133,7 @@ module RuboCop
           end
 
           def arg_list
-            children[1..-1]
+            children[1..]
           end
         end
         FunctionCall = Predicate
@@ -203,7 +206,7 @@ module RuboCop
           include ForbidInSeqHead
 
           def arity
-            min, max = children.map(&:arity_range).map(&:minmax).transpose.map(&:sum)
+            min, max = children.map { |child| child.arity_range.minmax }.transpose.map(&:sum)
             min == max ? min || 0 : min..max # NOTE: || 0 for empty case, where min == max == nil.
           end
 
@@ -212,14 +215,14 @@ module RuboCop
 
             return unless (replace = children.first.in_sequence_head)
 
-            [with(children: [*replace, *children[1..-1]])]
+            [with(children: [*replace, *children[1..]])]
           end
         end
 
         # Node class for `{ ... }`
         class Union < Node
           def arity
-            minima, maxima = children.map(&:arity_range).map(&:minmax).transpose
+            minima, maxima = children.map { |child| child.arity_range.minmax }.transpose
             min = minima.min
             max = maxima.max
             min == max ? min : min..max

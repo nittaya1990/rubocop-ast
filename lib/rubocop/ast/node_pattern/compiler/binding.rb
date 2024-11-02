@@ -20,14 +20,15 @@ module RuboCop
             end
 
             if var == :forbidden_unification
-              raise Invalid, "Wildcard #{name} was first seen in a subset of a" \
-                             " union and can't be used outside that union"
+              raise Invalid, "Wildcard #{name} was first seen in a subset of a " \
+                             "union and can't be used outside that union"
             end
             var
           end
 
-          # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
-          def union_bind(enum)
+          # Yields for each branch of the given union, forbidding unification of
+          # bindings which only appear in a subset of the union.
+          def union_bind(enum) # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
             # We need to reset @bound before each branch is processed.
             # Moreover we need to keep track of newly encountered wildcards.
             # Var `newly_bound_intersection` will hold those that are encountered
@@ -62,7 +63,6 @@ module RuboCop
 
             result
           end
-          # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 
           private
 

@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 RSpec.describe RuboCop::AST::ProcessedSource do
-  subject(:processed_source) { described_class.new(source, ruby_version, path) }
+  subject(:processed_source) do
+    described_class.new(source, ruby_version, path, parser_engine: parser_engine)
+  end
 
   let(:source) { <<~RUBY }
     # an awesome method
@@ -17,6 +19,48 @@ RSpec.describe RuboCop::AST::ProcessedSource do
     let(:source) { "# \xf9" }
   end
 
+  describe '#initialize' do
+    context 'when parsing non UTF-8 frozen string' do
+      let(:source) { (+'true').force_encoding(Encoding::ASCII_8BIT).freeze }
+
+      it 'returns an instance of ProcessedSource' do
+        is_expected.to be_a(described_class)
+      end
+    end
+
+    context 'when parsing code with an invalid encoding comment' do
+      let(:source) { '# encoding: foobar' }
+
+      it 'returns a parser error' do
+        expect(processed_source.parser_error).to be_a(Parser::UnknownEncodingInMagicComment)
+        expect(processed_source.parser_error.message)
+          .to include('unknown encoding name - foobar')
+      end
+    end
+
+    shared_examples 'invalid parser_engine' do
+      it 'raises ArgumentError' do
+        expect { processed_source }.to raise_error(ArgumentError) do |e|
+          expected =  'The keyword argument `parser_engine` accepts `parser_whitequark` ' \
+                      "or `parser_prism`, but `#{parser_engine}` was passed."
+          expect(e.message).to eq(expected)
+        end
+      end
+    end
+
+    context 'when using an invalid `parser_engine` symbol argument' do
+      let(:parser_engine) { :unknown_parser_engine }
+
+      it_behaves_like 'invalid parser_engine'
+    end
+
+    context 'when using an invalid `parser_engine` string argument' do
+      let(:parser_engine) { 'unknown_parser_engine' }
+
+      it_behaves_like 'invalid parser_engine'
+    end
+  end
+
   describe '.from_file' do
     describe 'when the file exists' do
       around do |example|
@@ -26,7 +70,9 @@ RSpec.describe RuboCop::AST::ProcessedSource do
         Dir.chdir(org_pwd)
       end
 
-      let(:processed_source) { described_class.from_file(path, ruby_version) }
+      let(:processed_source) do
+        described_class.from_file(path, ruby_version, parser_engine: parser_engine)
+      end
 
       it 'returns an instance of ProcessedSource' do
         is_expected.to be_a(described_class)
@@ -176,7 +222,9 @@ RSpec.describe RuboCop::AST::ProcessedSource do
       end
     end
 
-    context 'when the source is valid but has some warning diagnostics' do
+    # FIXME: `broken_on: :prism` can be removed when
+    # https://github.com/ruby/prism/issues/2454 will be released.
+    context 'when the source is valid but has some warning diagnostics', broken_on: :prism do
       let(:source) { 'do_something *array' }
 
       it 'returns true' do
@@ -254,7 +302,7 @@ RSpec.describe RuboCop::AST::ProcessedSource do
           item.text == '# comment four'
         end
 
-        expect(comment).to eq nil
+        expect(comment).to be_nil
       end
     end
 
@@ -265,7 +313,7 @@ RSpec.describe RuboCop::AST::ProcessedSource do
       end
 
       it 'returns nil if line has no comment' do
-        expect(processed_source.comment_at_line(3)).to be nil
+        expect(processed_source.comment_at_line(3)).to be_nil
       end
     end
 
@@ -297,7 +345,7 @@ RSpec.describe RuboCop::AST::ProcessedSource do
       let(:hash) { array.children[1] }
 
       context 'provided source_range on line without comment' do
-        let(:range) { hash.pairs.first.loc.expression }
+        let(:range) { hash.pairs.first.source_range }
 
         it { is_expected.to be false }
       end
@@ -309,13 +357,13 @@ RSpec.describe RuboCop::AST::ProcessedSource do
       end
 
       context 'provided source_range on line with comment' do
-        let(:range) { hash.pairs.last.loc.expression }
+        let(:range) { hash.pairs.last.source_range }
 
         it { is_expected.to be true }
       end
 
       context 'provided a multiline source_range with at least one line with comment' do
-        let(:range) { array.loc.expression }
+        let(:range) { array.source_range }
 
         it { is_expected.to be true }
       end
@@ -369,7 +417,7 @@ RSpec.describe RuboCop::AST::ProcessedSource do
       it 'yields nil when there is no match' do
         token = processed_source.find_token(&:right_bracket?)
 
-        expect(token).to eq nil
+        expect(token).to be_nil
       end
     end
   end
@@ -382,8 +430,7 @@ RSpec.describe RuboCop::AST::ProcessedSource do
 
   describe '#blank?' do
     context 'with source of no content' do
-      let(:source) { <<~RUBY }
-      RUBY
+      let(:source) { '' }
 
       it 'returns true' do
         expect(processed_source).to be_blank
@@ -401,10 +448,10 @@ RSpec.describe RuboCop::AST::ProcessedSource do
     end
   end
 
+  # rubocop:disable RSpec/RedundantPredicateMatcher
   describe '#start_with?' do
     context 'with blank source' do
-      let(:source) { <<~RUBY }
-      RUBY
+      let(:source) { '' }
 
       it 'returns false' do
         expect(processed_source).not_to be_start_with('start')
@@ -431,8 +478,10 @@ RSpec.describe RuboCop::AST::ProcessedSource do
       end
     end
   end
+  # rubocop:enable RSpec/RedundantPredicateMatcher
 
-  describe '#preceding_line' do
+  # FIXME: https://github.com/ruby/prism/issues/2467
+  describe '#preceding_line', broken_on: :prism do
     let(:source) { <<~RUBY }
       [ line, 1 ]
       { line: 2 }
@@ -448,7 +497,8 @@ RSpec.describe RuboCop::AST::ProcessedSource do
     end
   end
 
-  describe '#following_line' do
+  # FIXME: https://github.com/ruby/prism/issues/2467
+  describe '#following_line', broken_on: :prism do
     let(:source) { <<~RUBY }
       [ line, 1 ]
       { line: 2 }

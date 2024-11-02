@@ -57,7 +57,7 @@ module RuboCop
       # @api private
       BASIC_CONDITIONALS = %i[if while until].to_set.freeze
       # @api private
-      CONDITIONALS = (BASIC_CONDITIONALS + [:case]).freeze
+      CONDITIONALS = (BASIC_CONDITIONALS + %i[case case_match]).freeze
       # @api private
       POST_CONDITION_LOOP_TYPES = %i[while_post until_post].to_set.freeze
       # @api private
@@ -84,8 +84,33 @@ module RuboCop
       LITERAL_RECURSIVE_TYPES = (OPERATOR_KEYWORDS + COMPOSITE_LITERALS + %i[begin pair]).freeze
       private_constant :LITERAL_RECURSIVE_METHODS, :LITERAL_RECURSIVE_TYPES
 
+      EMPTY_CHILDREN = [].freeze
+      EMPTY_PROPERTIES = {}.freeze
+      private_constant :EMPTY_CHILDREN, :EMPTY_PROPERTIES
+
+      # Define a +recursive_?+ predicate method for the given node kind.
+      private_class_method def self.def_recursive_literal_predicate(kind) # rubocop:disable Metrics/MethodLength
+        recursive_kind = "recursive_#{kind}?"
+        kind_filter = "#{kind}?"
+
+        class_eval <<~RUBY, __FILE__, __LINE__ + 1
+          def #{recursive_kind}                                     # def recursive_literal?
+            case type                                               #   case type
+            when :send                                              #   when :send
+              LITERAL_RECURSIVE_METHODS.include?(method_name) &&    #     LITERAL_RECURSIVE_METHODS.include?(method_name) &&
+                receiver.send(:#{recursive_kind}) &&                #       receiver.send(:recursive_literal?) &&
+                arguments.all?(&:#{recursive_kind})                 #       arguments.all?(&:recursive_literal?)
+            when LITERAL_RECURSIVE_TYPES                            #   when LITERAL_RECURSIVE_TYPES
+              children.compact.all?(&:#{recursive_kind})            #     children.compact.all?(&:recursive_literal?)
+            else                                                    #   else
+              send(:#{kind_filter})                                 #     send(:literal?)
+            end                                                     #   end
+          end                                                       # end
+        RUBY
+      end
+
       # @see https://www.rubydoc.info/gems/ast/AST/Node:initialize
-      def initialize(type, children = [], properties = {})
+      def initialize(type, children = EMPTY_CHILDREN, properties = EMPTY_PROPERTIES)
         @mutable_attributes = {}
 
         # ::AST::Node#initialize freezes itself.
@@ -101,11 +126,19 @@ module RuboCop
         end
       end
 
-      Parser::Meta::NODE_TYPES.each do |node_type|
+      (Parser::Meta::NODE_TYPES - [:send]).each do |node_type|
         method_name = "#{node_type.to_s.gsub(/\W/, '')}_type?"
-        define_method(method_name) do
-          type == node_type
-        end
+        class_eval <<~RUBY, __FILE__, __LINE__ + 1
+          def #{method_name}          # def block_type?
+            @type == :#{node_type}    #   @type == :block
+          end                         # end
+        RUBY
+      end
+
+      # Most nodes are of 'send' type, so this method is defined
+      # separately to make this check as fast as possible.
+      def send_type?
+        false
       end
 
       # Returns the parent node, or `nil` if the receiver is a root node.
@@ -194,7 +227,7 @@ module RuboCop
       def right_siblings
         return [].freeze unless parent
 
-        parent.children[sibling_index + 1..-1].freeze
+        parent.children[sibling_index + 1..].freeze
       end
 
       # Common destructuring method. This can be used to normalize
@@ -203,9 +236,7 @@ module RuboCop
       # destructuring method.
       #
       # @return [Array<Node>] the different parts of the ndde
-      def node_parts
-        to_a
-      end
+      alias node_parts to_a
 
       # Calls the given block for each ancestor node from parent to root.
       # If no block is given, an `Enumerator` is returned.
@@ -274,7 +305,7 @@ module RuboCop
 
       # @!method receiver(node = self)
       def_node_matcher :receiver, <<~PATTERN
-        {(send $_ ...) ({block numblock} (send $_ ...) ...)}
+        {(send $_ ...) ({block numblock} (call $_ ...) ...)}
       PATTERN
 
       # @!method str_content(node = self)
@@ -316,13 +347,13 @@ module RuboCop
         # what class or module is this method/constant/etc definition in?
         # returns nil if answer cannot be determined
         ancestors = each_ancestor(:class, :module, :sclass, :casgn, :block)
-        result    = ancestors.map do |ancestor|
+        result    = ancestors.filter_map do |ancestor|
           parent_module_name_part(ancestor) do |full_name|
             return nil unless full_name
 
             full_name
           end
-        end.compact.reverse.join('::')
+        end.reverse.join('::')
         result.empty? ? 'Object' : result
       end
 
@@ -370,22 +401,11 @@ module RuboCop
         IMMUTABLE_LITERALS.include?(type)
       end
 
-      %i[literal basic_literal].each do |kind|
-        recursive_kind = :"recursive_#{kind}?"
-        kind_filter = :"#{kind}?"
-        define_method(recursive_kind) do
-          case type
-          when :send
-            LITERAL_RECURSIVE_METHODS.include?(method_name) &&
-              receiver.send(recursive_kind) &&
-              arguments.all?(&recursive_kind)
-          when LITERAL_RECURSIVE_TYPES
-            children.compact.all?(&recursive_kind)
-          else
-            send(kind_filter)
-          end
-        end
-      end
+      # @!macro [attach] def_recursive_literal_predicate
+      #   @!method recursive_$1?
+      #     @return [Boolean]
+      def_recursive_literal_predicate :literal
+      def_recursive_literal_predicate :basic_literal
 
       def variable?
         VARIABLES.include?(type)
@@ -440,7 +460,7 @@ module RuboCop
       end
 
       def parenthesized_call?
-        loc.respond_to?(:begin) && loc.begin && loc.begin.is?('(')
+        loc.respond_to?(:begin) && loc.begin&.is?('(')
       end
 
       def call_type?
@@ -464,7 +484,7 @@ module RuboCop
       end
 
       def numeric_type?
-        int_type? || float_type?
+        int_type? || float_type? || rational_type? || complex_type?
       end
 
       def range_type?
@@ -500,8 +520,14 @@ module RuboCop
 
       # @!method class_constructor?(node = self)
       def_node_matcher :class_constructor?, <<~PATTERN
-        {       (send #global_const?({:Class :Module :Struct}) :new ...)
-         (block (send #global_const?({:Class :Module :Struct}) :new ...) ...)}
+        {
+          (send #global_const?({:Class :Module :Struct}) :new ...)
+          (send #global_const?(:Data) :define ...)
+          ({block numblock} {
+            (send #global_const?({:Class :Module :Struct}) :new ...)
+            (send #global_const?(:Data) :define ...)
+          } ...)
+        }
       PATTERN
 
       # @deprecated Use `:class_constructor?`
@@ -531,8 +557,7 @@ module RuboCop
       # So, does the return value of this node matter? If we changed it to
       # `(...; nil)`, might that affect anything?
       #
-      # rubocop:disable Metrics/MethodLength
-      def value_used?
+      def value_used? # rubocop:disable Metrics/MethodLength
         # Be conservative and return true if we're not sure.
         return false if parent.nil?
 
@@ -553,7 +578,6 @@ module RuboCop
           true
         end
       end
-      # rubocop:enable Metrics/MethodLength
 
       # Some expressions are evaluated for their value, some for their side
       # effects, and some for both.

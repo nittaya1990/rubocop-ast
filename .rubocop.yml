@@ -17,8 +17,12 @@ AllCops:
     - 'lib/rubocop/ast/node_pattern/lexer.rex.rb'
     - 'spec/rubocop/ast/node_pattern/parse_helper.rb'
     - 'spec/rubocop/ast/fixtures/*'
-  TargetRubyVersion: 2.5
+  TargetRubyVersion: 2.7
   SuggestExtensions: false
+
+# It cannot be replaced with suggested methods defined by RuboCop AST itself.
+InternalAffairs/MethodNameEndWith:
+  Enabled: false
 
 InternalAffairs/NodeMatcherDirective:
   Exclude:
@@ -96,6 +100,11 @@ Metrics/ModuleLength:
   Exclude:
     - 'spec/**/*.rb'
 
+RSpec:
+  Language:
+    Expectations:
+      - expect_parsing
+
 RSpec/PredicateMatcher:
   Strict: false
 
@@ -111,8 +120,9 @@ RSpec/NestedGroups:
 RSpec/MultipleMemoizedHelpers:
   Enabled: false
 
-RSpec/FactoryBot/CreateList:
-  Enabled: false
+RSpec/SpecFilePathFormat:
+  CustomTransform:
+    RuboCopCompatibility: rubocop_compatibility
 
 RSpec/StubbedMock:
   Enabled: false

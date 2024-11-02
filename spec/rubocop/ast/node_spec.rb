@@ -1,24 +1,24 @@
 # frozen_string_literal: true
 
+require 'uri'
+
+module RuboCop
+  module AST
+    # Patch Node
+    class Node
+      # Let's make our predicate matchers read better
+      def used?
+        value_used?
+      end
+    end
+  end
+end
+
 RSpec.describe RuboCop::AST::Node do
   let(:ast) { parse_source(src).node }
   let(:node) { ast }
 
   describe '#value_used?' do
-    before :all do
-      module RuboCop # rubocop:disable Lint/ConstantDefinitionInBlock
-        module AST
-          # Patch Node
-          class Node
-            # Let's make our predicate matchers read better
-            def used?
-              value_used?
-            end
-          end
-        end
-      end
-    end
-
     context 'at the top level' do
       let(:src) { 'expr' }
 
@@ -317,7 +317,15 @@ RSpec.describe RuboCop::AST::Node do
       end
 
       context 'with no interpolation' do
-        let(:src) { URI::DEFAULT_PARSER.make_regexp.inspect }
+        let(:src) do
+          # TODO: When supporting Ruby 3.3+ runtime, `URI::DEFAULT_PARSER` can be removed and
+          #       only `URI::RFC2396_PARSER` can be used.
+          if defined?(URI::RFC2396_PARSER)
+            URI::RFC2396_PARSER
+          else
+            URI::DEFAULT_PARSER
+          end.make_regexp.inspect
+        end
 
         it 'returns true' do
           expect(node).to be_pure
@@ -338,9 +346,9 @@ RSpec.describe RuboCop::AST::Node do
     let(:src) { '[0, 1, 2, 3, 4, 5]' }
 
     it 'returns trivial values for a root node' do
-      expect(node.sibling_index).to eq nil
-      expect(node.left_sibling).to eq nil
-      expect(node.right_sibling).to eq nil
+      expect(node.sibling_index).to be_nil
+      expect(node.left_sibling).to be_nil
+      expect(node.right_sibling).to be_nil
       expect(node.left_siblings).to eq []
       expect(node.right_siblings).to eq []
     end
@@ -363,8 +371,8 @@ RSpec.describe RuboCop::AST::Node do
 
       it 'returns the expected values' do
         expect(node.sibling_index).to eq 0
-        expect(node.left_sibling).to eq nil
-        expect(node.right_sibling).to eq nil
+        expect(node.left_sibling).to be_nil
+        expect(node.right_sibling).to be_nil
         expect(node.left_siblings.map(&:value)).to eq []
         expect(node.right_siblings.map(&:value)).to eq []
       end
@@ -412,7 +420,7 @@ RSpec.describe RuboCop::AST::Node do
       let(:src) { 'class Foo; a = 42; end' }
 
       it 'does not match' do
-        expect(node.class_constructor?).to eq(nil)
+        expect(node.class_constructor?).to be_nil
       end
     end
 
@@ -421,6 +429,66 @@ RSpec.describe RuboCop::AST::Node do
 
       it 'matches' do
         expect(node).to be_class_constructor
+      end
+    end
+
+    context 'using Ruby >= 2.7', :ruby27 do
+      context 'class definition with a numblock' do
+        let(:src) { 'Class.new { do_something(_1) }' }
+
+        it 'matches' do
+          expect(node).to be_class_constructor
+        end
+      end
+
+      context 'module definition with a numblock' do
+        let(:src) { 'Module.new { do_something(_1) }' }
+
+        it 'matches' do
+          expect(node).to be_class_constructor
+        end
+      end
+
+      context 'Struct definition with a numblock' do
+        let(:src) { 'Struct.new(:foo, :bar) { do_something(_1) }' }
+
+        it 'matches' do
+          expect(node).to be_class_constructor
+        end
+      end
+    end
+
+    context 'using Ruby >= 3.2', :ruby32 do
+      context 'Data definition with a block' do
+        let(:src) { 'Data.define(:foo, :bar) { def a = 42 }' }
+
+        it 'matches' do
+          expect(node).to be_class_constructor
+        end
+      end
+
+      context 'Data definition with a numblock' do
+        let(:src) { 'Data.define(:foo, :bar) { do_something(_1) }' }
+
+        it 'matches' do
+          expect(node).to be_class_constructor
+        end
+      end
+
+      context 'Data definition without block' do
+        let(:src) { 'Data.define(:foo, :bar)' }
+
+        it 'matches' do
+          expect(node).to be_class_constructor
+        end
+      end
+
+      context '::Data' do
+        let(:src) { '::Data.define(:foo, :bar) { def a = 42 }' }
+
+        it 'matches' do
+          expect(node).to be_class_constructor
+        end
       end
     end
   end
@@ -438,7 +506,7 @@ RSpec.describe RuboCop::AST::Node do
       let(:src) { 'Struct.new(:foo, :bar)' }
 
       it 'does not match' do
-        expect(node.struct_constructor?).to eq(nil)
+        expect(node.struct_constructor?).to be_nil
       end
     end
 
@@ -511,7 +579,7 @@ RSpec.describe RuboCop::AST::Node do
       let(:src) { 'Person = Struct.new(:name, :age)' }
 
       it 'does not match' do
-        expect(node.class_definition?).to eq(nil)
+        expect(node.class_definition?).to be_nil
       end
     end
 
@@ -769,7 +837,7 @@ RSpec.describe RuboCop::AST::Node do
         RUBY
       end
 
-      it { is_expected.to eq nil }
+      it { is_expected.to be_nil }
     end
 
     context 'when node nested in a class << exp' do
@@ -783,7 +851,139 @@ RSpec.describe RuboCop::AST::Node do
         RUBY
       end
 
-      it { is_expected.to eq nil }
+      it { is_expected.to be_nil }
+    end
+  end
+
+  describe '#numeric_type?' do
+    context 'when integer literal' do
+      let(:src) { '42' }
+
+      it 'is true' do
+        expect(node).to be_numeric_type
+      end
+    end
+
+    context 'when float literal' do
+      let(:src) { '42.0' }
+
+      it 'is true' do
+        expect(node).to be_numeric_type
+      end
+    end
+
+    context 'when rational literal' do
+      let(:src) { '42r' }
+
+      it 'is true' do
+        expect(node).to be_numeric_type
+      end
+    end
+
+    context 'when complex literal' do
+      let(:src) { '42i' }
+
+      it 'is true' do
+        expect(node).to be_numeric_type
+      end
+    end
+
+    context 'when complex literal whose imaginary part is a rational' do
+      let(:src) { '42ri' }
+
+      it 'is true' do
+        expect(node).to be_numeric_type
+      end
+    end
+
+    context 'when string literal' do
+      let(:src) { '"42"' }
+
+      it 'is true' do
+        expect(node).not_to be_numeric_type
+      end
+    end
+  end
+
+  describe '#conditional?' do
+    context 'when `if` node' do
+      let(:src) do
+        <<~RUBY
+          if condition
+          end
+        RUBY
+      end
+
+      it 'is true' do
+        expect(node).to be_conditional
+      end
+    end
+
+    context 'when `while` node' do
+      let(:src) do
+        <<~RUBY
+          while condition
+          end
+        RUBY
+      end
+
+      it 'is true' do
+        expect(node).to be_conditional
+      end
+    end
+
+    context 'when `until` node' do
+      let(:src) do
+        <<~RUBY
+          until condition
+          end
+        RUBY
+      end
+
+      it 'is true' do
+        expect(node).to be_conditional
+      end
+    end
+
+    context 'when `case` node' do
+      let(:src) do
+        <<~RUBY
+          case condition
+          when foo
+          end
+        RUBY
+      end
+
+      it 'is true' do
+        expect(node).to be_conditional
+      end
+    end
+
+    context 'when `case_match` node', :ruby27 do
+      let(:src) do
+        <<~RUBY
+          case pattern
+          in foo
+          end
+        RUBY
+      end
+
+      it 'is true' do
+        expect(node).to be_conditional
+      end
+    end
+
+    context 'when post condition loop node' do
+      let(:src) do
+        <<~RUBY
+          begin
+          end while condition
+        RUBY
+      end
+
+      it 'is false' do
+        expect(node).not_to be_conditional
+      end
     end
   end
 end

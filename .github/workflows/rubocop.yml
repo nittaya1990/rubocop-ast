@@ -9,6 +9,10 @@ on:
       - master
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   ast_specs:
     name: >-
@@ -20,20 +24,19 @@ jobs:
       TEST_QUEUE_WORKERS: 2
       RUBOCOP_VERSION: none
       JRUBY_OPTS: --dev # http://blog.headius.com/2019/09/jruby-startup-time-exploration.html
+      TRUFFLERUBYOPT: --engine.Mode=latency # optimize for short test suites
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu ]
-        ruby: [ 2.5, 2.6, 2.7, '3.0', head ]
-        coverage: [ null ]
-        modern: [ null ]
-        title: [ null ]
+        os: [ubuntu]
+        ruby: [2.7, "3.0", 3.1, 3.2, 3.3, head]
+        coverage: [null]
+        modern: [null]
+        title: [null]
         include:
-          - { os: windows, ruby: mingw }
-          - { ruby: 2.5, os: ubuntu, coverage: true, title: 'Coverage' }
-          - { ruby: '3.0', os: ubuntu, modern: true, title: 'Specs "modern"' }
-          # jruby disabled because of: https://github.com/jruby/jruby/issues/6416
-          # - { ruby: jruby, os: ubuntu }
+          - { ruby: 2.7, os: ubuntu, coverage: true, title: "Coverage" }
+          - { ruby: "3.0", os: ubuntu, modern: true, title: 'Specs "modern"' }
+          - { ruby: jruby, os: ubuntu }
           - { ruby: jruby-head, os: ubuntu }
           - { ruby: truffleruby, os: ubuntu }
           - { ruby: truffleruby-head, os: ubuntu }
@@ -46,7 +49,7 @@ jobs:
           echo "TMPDIR=$env:RUNNER_TEMP" >> $GITHUB_ENV
           git config --system core.autocrlf false
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -55,10 +58,10 @@ jobs:
         run: bundle install --jobs 3 --retry 3
       - name: code coverage
         if: matrix.coverage
-        uses: paambaati/codeclimate-action@v2.6.0
+        uses: paambaati/codeclimate-action@v9.0.0
         env:
-          CC_TEST_REPORTER_ID: '758a8228862932dc8afa9144c4a5bc5dfe29c2f7dde1b7734175bad49ee310e7'
-          COVERAGE: 'true'
+          CC_TEST_REPORTER_ID: "758a8228862932dc8afa9144c4a5bc5dfe29c2f7dde1b7734175bad49ee310e7"
+          COVERAGE: "true"
         with:
           coverageCommand: bundle exec rake spec
           debug: true
@@ -70,7 +73,22 @@ jobs:
         run: (! bundle exec rubocop -h 2> /dev/null) && echo 'RuboCop successfully *not* loaded for local tests'
       - name: spec
         if: "matrix.coverage != true && matrix.internal_investigation != true"
-        run:  bundle exec rake spec
+        run: bundle exec rake spec
+  prism:
+    runs-on: ubuntu-latest
+    name: Prism
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          # Specify the minimum Ruby version 2.7 required for Prism to run.
+          ruby-version: 2.7
+          bundler-cache: true
+      - name: spec
+        env:
+          PARSER_ENGINE: parser_prism
+        run: bundle exec rake prism_spec
   rubocop_specs:
     name: >-
       Main Gem Specs | RuboCop: ${{ matrix.rubocop }} | ${{ matrix.ruby }}
@@ -81,15 +99,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu ]
-        ruby: [ 2.5, 2.7 ]
-        rubocop: [ master ]
-        internal_investigation: [ null ]
+        os: [ubuntu]
+        ruby: [2.7]
+        rubocop: [master]
+        internal_investigation: [null]
         include:
-          - { rubocop: master, ruby: '3.0', os: ubuntu }
+          - { rubocop: master, ruby: "3.0", os: ubuntu }
+          - { rubocop: "v1.61.0", ruby: "3.3", os: ubuntu }
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -97,7 +116,7 @@ jobs:
       - name: setup env
         run: echo 'RUBOCOP_VERSION=${{ matrix.rubocop }}' >> $GITHUB_ENV
       - name: install rubocop from source for full specs
-        run: git clone --branch ${{ matrix.rubocop }} https://github.com/rubocop-hq/rubocop.git ../rubocop
+        run: git clone --branch ${{ matrix.rubocop }} https://github.com/rubocop/rubocop.git ../rubocop
       - name: install rubocop dependencies
         run: cd ../rubocop && bundle install --jobs 3 --retry 3
       - name: install dependencies
@@ -105,7 +124,7 @@ jobs:
       - name: generate lexer and parser
         run: bundle exec rake generate
       - name: spec
-        run:  cd ../rubocop && bundle exec rake spec
+        run: cd ../rubocop && bundle exec rake spec
   internal_investigation:
     name: >-
       Coding Style | ${{ matrix.ruby }}
@@ -117,12 +136,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu ]
-        ruby: [ '3.0' ]
-        rubocop: [ master ]
+        os: [ubuntu]
+        ruby: ["3.0"]
+        rubocop: [master]
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -130,4 +149,4 @@ jobs:
       - name: install dependencies
         run: bundle install --jobs 3 --retry 3
       - name: internal investigation
-        run:  bundle exec rake generate internal_investigation
+        run: bundle exec rake generate internal_investigation

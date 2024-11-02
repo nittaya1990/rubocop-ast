@@ -36,10 +36,38 @@ RSpec.describe RuboCop::AST::Traversal do
     end
   end
 
+  context 'when a class defines `on_block_pass`', :ruby31 do
+    let(:klass) do
+      Class.new do
+        attr_reader :calls
+
+        include RuboCop::AST::Traversal
+        def on_block_pass(node)
+          (@calls ||= []) << node.children.first&.type
+          super
+        end
+      end
+    end
+
+    let(:source) { <<~RUBY }
+      def foo(&) # Anonymous block forwarding.
+        bar(&)
+      end
+
+      def baz(&block)
+        qux(&block)
+      end
+    RUBY
+
+    it 'calls it for all block-pass arguments' do
+      expect(traverse.calls).to eq [nil, :lvar]
+    end
+  end
+
   File.read("#{__dir__}/fixtures/code_examples.rb")
       .split("#----\n")
       .each_with_index do |example, _i|
-    context "for example #{example}", :ruby27 do
+    context "with example #{example}", :ruby27 do
       let(:klass) do
         Struct.new(:hits) do
           include RuboCop::AST::Traversal
@@ -58,7 +86,8 @@ RSpec.describe RuboCop::AST::Traversal do
 
       let(:source) { "foo=bar=baz=nil; #{example}" }
 
-      it 'traverses all nodes' do
+      # FIXME: `broken_on: :prism` can be removed when Prism > 0.24.0 will be released.
+      it 'traverses all nodes', broken_on: :prism do
         actual = node.each_node.count
         expect(traverse.hits).to eql(actual)
       end
@@ -66,7 +95,7 @@ RSpec.describe RuboCop::AST::Traversal do
   end
 
   it 'knows all current node types' do
-    expect(RuboCop::AST::Traversal::MISSING).to eq []
+    expect(described_class::MISSING).to eq []
   end
 
   # Sanity checking the debugging checks
@@ -78,7 +107,7 @@ RSpec.describe RuboCop::AST::Traversal do
       let(:node) { s(:int) }
 
       it 'raises debugging error' do
-        expect { traverse }.to raise_error(RuboCop::AST::Traversal::DebugError)
+        expect { traverse }.to raise_error(described_class::DebugError)
       end
     end
 
@@ -86,7 +115,7 @@ RSpec.describe RuboCop::AST::Traversal do
       let(:node) { s(:int, 1, 2) }
 
       it 'raises debugging error' do
-        expect { traverse }.to raise_error(RuboCop::AST::Traversal::DebugError)
+        expect { traverse }.to raise_error(described_class::DebugError)
       end
     end
   end

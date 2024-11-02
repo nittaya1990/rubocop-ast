@@ -22,6 +22,19 @@ RSpec::Core::RakeTask.new(spec: :generate) do |spec|
   spec.pattern = FileList['spec/**/*_spec.rb']
 end
 
+desc 'Run RSpec code examples with Prism'
+task prism_spec: :generate do
+  original_parser_engine = ENV.fetch('PARSER_ENGINE', nil)
+
+  RSpec::Core::RakeTask.new(prism_spec: :generate) do |spec|
+    ENV['PARSER_ENGINE'] = 'parser_prism'
+
+    spec.pattern = FileList['spec/**/*_spec.rb']
+  end
+
+  ENV['PARSER_ENGINE'] = original_parser_engine
+end
+
 desc 'Run RSpec with code coverage'
 task :coverage do
   ENV['COVERAGE'] = 'true'
@@ -35,5 +48,6 @@ end
 
 task default: %i[
   spec
+  prism_spec
   internal_investigation
 ]

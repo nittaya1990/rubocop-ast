@@ -5,7 +5,7 @@ module RuboCop
     # Common functionality for nodes that are a kind of method dispatch:
     # `send`, `csend`, `super`, `zsuper`, `yield`, `defined?`,
     # and (modern only): `index`, `indexasgn`, `lambda`
-    module MethodDispatchNode
+    module MethodDispatchNode # rubocop:disable Metrics/ModuleLength
       extend NodePattern::Macros
       include MethodIdentifierPredicates
 
@@ -26,6 +26,17 @@ module RuboCop
       # @return [Symbol] the name of the dispatched method
       def method_name
         node_parts[1]
+      end
+
+      # The source range for the method name or keyword that dispatches this call.
+      #
+      # @return [Parser::Source::Range] the source range for the method name or keyword
+      def selector
+        if loc.respond_to? :keyword
+          loc.keyword
+        else
+          loc.selector
+        end
       end
 
       # The `block` or `numblock` node associated with this method dispatch, if any.
@@ -106,7 +117,7 @@ module RuboCop
       #
       # @return [Boolean] whether the method was called with a connecting dot
       def dot?
-        loc.respond_to?(:dot) && loc.dot && loc.dot.is?('.')
+        loc.respond_to?(:dot) && loc.dot&.is?('.')
       end
 
       # Checks whether the dispatched method uses a double colon to connect the
@@ -114,7 +125,7 @@ module RuboCop
       #
       # @return [Boolean] whether the method was called with a connecting dot
       def double_colon?
-        loc.respond_to?(:dot) && loc.dot && loc.dot.is?('::')
+        loc.respond_to?(:dot) && loc.dot&.is?('::')
       end
 
       # Checks whether the dispatched method uses a safe navigation operator to
@@ -122,7 +133,7 @@ module RuboCop
       #
       # @return [Boolean] whether the method was called with a connecting dot
       def safe_navigation?
-        loc.respond_to?(:dot) && loc.dot && loc.dot.is?('&.')
+        loc.respond_to?(:dot) && loc.dot&.is?('&.')
       end
 
       # Checks whether the *explicit* receiver of this method dispatch is
@@ -147,7 +158,7 @@ module RuboCop
       #
       # @return [Boolean] whether the method is the implicit form of `#call`
       def implicit_call?
-        method?(:call) && !loc.selector
+        method?(:call) && !selector
       end
 
       # Whether this method dispatch has an explicit block.
@@ -171,7 +182,7 @@ module RuboCop
       #
       #   private def foo; end
       #
-      # @return wether the `def|defs` node is a modifier or not.
+      # @return whether the `def|defs` node is a modifier or not.
       # See also `def_modifier` that returns the node or `nil`
       def def_modifier?(node = self)
         !!def_modifier(node)
@@ -211,7 +222,7 @@ module RuboCop
       #
       # @return [Boolean] whether this method is a lambda literal
       def lambda_literal?
-        block_literal? && loc.expression && loc.expression.source == '->'
+        loc.expression.source == '->' && block_literal?
       end
 
       # Checks whether this is a unary operation.
@@ -222,9 +233,9 @@ module RuboCop
       #
       # @return [Boolean] whether this method is a unary operation
       def unary_operation?
-        return false unless loc.selector
+        return false unless selector
 
-        operator_method? && loc.expression.begin_pos == loc.selector.begin_pos
+        operator_method? && loc.expression.begin_pos == selector.begin_pos
       end
 
       # Checks whether this is a binary operation.
@@ -233,11 +244,11 @@ module RuboCop
       #
       #   foo + bar
       #
-      # @return [Bookean] whether this method is a binary operation
+      # @return [Boolean] whether this method is a binary operation
       def binary_operation?
-        return false unless loc.selector
+        return false unless selector
 
-        operator_method? && loc.expression.begin_pos != loc.selector.begin_pos
+        operator_method? && loc.expression.begin_pos != selector.begin_pos
       end
 
       private
@@ -249,7 +260,7 @@ module RuboCop
           ^{                                       # or the parent is...
             sclass class module class_constructor? # a class-like node
             [ {                                    # or some "wrapper"
-                kwbegin begin block
+                kwbegin begin block numblock
                 (if _condition <%0 _>)  # note: we're excluding the condition of `if` nodes
               }
               #in_macro_scope?                     # that is itself in a macro scope
@@ -270,7 +281,7 @@ module RuboCop
 
       # @!method non_bare_access_modifier_declaration?(node = self)
       def_node_matcher :non_bare_access_modifier_declaration?, <<~PATTERN
-        (send nil? {:public :protected :private :module_function} _)
+        (send nil? {:public :protected :private :module_function} _+)
       PATTERN
     end
   end
